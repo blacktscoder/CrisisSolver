@@ -1863,6 +1863,50 @@ COMMENT ON TABLE app_private.user_secrets IS 'The contents of this table should 
 
 
 --
+-- Name: allocations; Type: TABLE; Schema: app_public; Owner: -
+--
+
+CREATE TABLE app_public.allocations (
+    id integer NOT NULL,
+    resource_id integer NOT NULL,
+    request_id integer NOT NULL,
+    allocated_quantity integer NOT NULL,
+    status text DEFAULT 'in_progress'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT allocations_allocated_quantity_check CHECK ((allocated_quantity > 0)),
+    CONSTRAINT allocations_status_check CHECK ((status = ANY (ARRAY['in_progress'::text, 'completed'::text, 'canceled'::text])))
+);
+
+
+--
+-- Name: TABLE allocations; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON TABLE app_public.allocations IS 'Tracks the allocation of resources to requests.';
+
+
+--
+-- Name: allocations_id_seq; Type: SEQUENCE; Schema: app_public; Owner: -
+--
+
+CREATE SEQUENCE app_public.allocations_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: allocations_id_seq; Type: SEQUENCE OWNED BY; Schema: app_public; Owner: -
+--
+
+ALTER SEQUENCE app_public.allocations_id_seq OWNED BY app_public.allocations.id;
+
+
+--
 -- Name: organization_invitations; Type: TABLE; Schema: app_public; Owner: -
 --
 
@@ -1889,6 +1933,117 @@ CREATE TABLE app_public.organization_memberships (
     is_billing_contact boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+
+--
+-- Name: requests; Type: TABLE; Schema: app_public; Owner: -
+--
+
+CREATE TABLE app_public.requests (
+    id integer NOT NULL,
+    requester_id uuid NOT NULL,
+    resource_type text NOT NULL,
+    priority integer NOT NULL,
+    quantity integer NOT NULL,
+    status text DEFAULT 'pending'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT requests_priority_check CHECK (((priority >= 1) AND (priority <= 5))),
+    CONSTRAINT requests_quantity_check CHECK ((quantity > 0)),
+    CONSTRAINT requests_resource_type_check CHECK ((resource_type = ANY (ARRAY['food'::text, 'medical'::text, 'shelter'::text, 'other'::text]))),
+    CONSTRAINT requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'fulfilled'::text])))
+);
+
+
+--
+-- Name: TABLE requests; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON TABLE app_public.requests IS 'Tracks requests for resources from crisis zones.';
+
+
+--
+-- Name: COLUMN requests.priority; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON COLUMN app_public.requests.priority IS 'The priority level of the request (1 is highest).';
+
+
+--
+-- Name: requests_id_seq; Type: SEQUENCE; Schema: app_public; Owner: -
+--
+
+CREATE SEQUENCE app_public.requests_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: requests_id_seq; Type: SEQUENCE OWNED BY; Schema: app_public; Owner: -
+--
+
+ALTER SEQUENCE app_public.requests_id_seq OWNED BY app_public.requests.id;
+
+
+--
+-- Name: resources; Type: TABLE; Schema: app_public; Owner: -
+--
+
+CREATE TABLE app_public.resources (
+    id integer NOT NULL,
+    name text NOT NULL,
+    type text NOT NULL,
+    quantity integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT resources_quantity_check CHECK ((quantity >= 0)),
+    CONSTRAINT resources_type_check CHECK ((type = ANY (ARRAY['food'::text, 'medical'::text, 'shelter'::text, 'other'::text])))
+);
+
+
+--
+-- Name: TABLE resources; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON TABLE app_public.resources IS 'Tracks available resources for allocation.';
+
+
+--
+-- Name: COLUMN resources.type; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON COLUMN app_public.resources.type IS 'The type of resource (e.g., food, medical supplies).';
+
+
+--
+-- Name: COLUMN resources.quantity; Type: COMMENT; Schema: app_public; Owner: -
+--
+
+COMMENT ON COLUMN app_public.resources.quantity IS 'The quantity of the resource available.';
+
+
+--
+-- Name: resources_id_seq; Type: SEQUENCE; Schema: app_public; Owner: -
+--
+
+CREATE SEQUENCE app_public.resources_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: resources_id_seq; Type: SEQUENCE OWNED BY; Schema: app_public; Owner: -
+--
+
+ALTER SEQUENCE app_public.resources_id_seq OWNED BY app_public.resources.id;
 
 
 --
@@ -1932,6 +2087,27 @@ COMMENT ON COLUMN app_public.user_authentications.identifier IS 'A unique identi
 --
 
 COMMENT ON COLUMN app_public.user_authentications.details IS 'Additional profile details extracted from this login method';
+
+
+--
+-- Name: allocations id; Type: DEFAULT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.allocations ALTER COLUMN id SET DEFAULT nextval('app_public.allocations_id_seq'::regclass);
+
+
+--
+-- Name: requests id; Type: DEFAULT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.requests ALTER COLUMN id SET DEFAULT nextval('app_public.requests_id_seq'::regclass);
+
+
+--
+-- Name: resources id; Type: DEFAULT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.resources ALTER COLUMN id SET DEFAULT nextval('app_public.resources_id_seq'::regclass);
 
 
 --
@@ -1980,6 +2156,14 @@ ALTER TABLE ONLY app_private.user_email_secrets
 
 ALTER TABLE ONLY app_private.user_secrets
     ADD CONSTRAINT user_secrets_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: allocations allocations_pkey; Type: CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.allocations
+    ADD CONSTRAINT allocations_pkey PRIMARY KEY (id);
 
 
 --
@@ -2039,6 +2223,22 @@ ALTER TABLE ONLY app_public.organizations
 
 
 --
+-- Name: requests requests_pkey; Type: CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.requests
+    ADD CONSTRAINT requests_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: resources resources_pkey; Type: CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.resources
+    ADD CONSTRAINT resources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_authentications uniq_user_authentications; Type: CONSTRAINT; Schema: app_public; Owner: -
 --
 
@@ -2094,6 +2294,13 @@ CREATE INDEX sessions_user_id_idx ON app_private.sessions USING btree (user_id);
 
 
 --
+-- Name: allocations_status_idx; Type: INDEX; Schema: app_public; Owner: -
+--
+
+CREATE INDEX allocations_status_idx ON app_public.allocations USING btree (status);
+
+
+--
 -- Name: idx_user_emails_primary; Type: INDEX; Schema: app_public; Owner: -
 --
 
@@ -2119,6 +2326,13 @@ CREATE INDEX organization_invitations_user_id_idx ON app_public.organization_inv
 --
 
 CREATE INDEX organization_memberships_user_id_idx ON app_public.organization_memberships USING btree (user_id);
+
+
+--
+-- Name: requests_priority_idx; Type: INDEX; Schema: app_public; Owner: -
+--
+
+CREATE INDEX requests_priority_idx ON app_public.requests USING btree (priority);
 
 
 --
@@ -2280,6 +2494,22 @@ ALTER TABLE ONLY app_private.user_secrets
 
 
 --
+-- Name: allocations allocations_request_id_fkey; Type: FK CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.allocations
+    ADD CONSTRAINT allocations_request_id_fkey FOREIGN KEY (request_id) REFERENCES app_public.requests(id);
+
+
+--
+-- Name: allocations allocations_resource_id_fkey; Type: FK CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.allocations
+    ADD CONSTRAINT allocations_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES app_public.resources(id);
+
+
+--
 -- Name: organization_invitations organization_invitations_organization_id_fkey; Type: FK CONSTRAINT; Schema: app_public; Owner: -
 --
 
@@ -2309,6 +2539,14 @@ ALTER TABLE ONLY app_public.organization_memberships
 
 ALTER TABLE ONLY app_public.organization_memberships
     ADD CONSTRAINT organization_memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES app_public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: requests requests_requester_id_fkey; Type: FK CONSTRAINT; Schema: app_public; Owner: -
+--
+
+ALTER TABLE ONLY app_public.requests
+    ADD CONSTRAINT requests_requester_id_fkey FOREIGN KEY (requester_id) REFERENCES app_public.users(id);
 
 
 --
@@ -2358,6 +2596,12 @@ ALTER TABLE app_private.user_email_secrets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_private.user_secrets ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: allocations; Type: ROW SECURITY; Schema: app_public; Owner: -
+--
+
+ALTER TABLE app_public.allocations ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: user_authentications delete_own; Type: POLICY; Schema: app_public; Owner: -
 --
 
@@ -2379,6 +2623,13 @@ CREATE POLICY insert_own ON app_public.user_emails FOR INSERT WITH CHECK ((user_
 
 
 --
+-- Name: allocations manage_allocations; Type: POLICY; Schema: app_public; Owner: -
+--
+
+CREATE POLICY manage_allocations ON app_public.allocations USING (true);
+
+
+--
 -- Name: organization_invitations; Type: ROW SECURITY; Schema: app_public; Owner: -
 --
 
@@ -2397,10 +2648,29 @@ ALTER TABLE app_public.organization_memberships ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_public.organizations ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: requests; Type: ROW SECURITY; Schema: app_public; Owner: -
+--
+
+ALTER TABLE app_public.requests ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: resources; Type: ROW SECURITY; Schema: app_public; Owner: -
+--
+
+ALTER TABLE app_public.resources ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: users select_all; Type: POLICY; Schema: app_public; Owner: -
 --
 
 CREATE POLICY select_all ON app_public.users FOR SELECT USING (true);
+
+
+--
+-- Name: resources select_all_resources; Type: POLICY; Schema: app_public; Owner: -
+--
+
+CREATE POLICY select_all_resources ON app_public.resources FOR SELECT USING (true);
 
 
 --
@@ -2443,6 +2713,13 @@ CREATE POLICY select_own ON app_public.user_authentications FOR SELECT USING ((u
 --
 
 CREATE POLICY select_own ON app_public.user_emails FOR SELECT USING ((user_id = app_public.current_user_id()));
+
+
+--
+-- Name: requests select_own_requests; Type: POLICY; Schema: app_public; Owner: -
+--
+
+CREATE POLICY select_own_requests ON app_public.requests FOR SELECT USING ((requester_id = app_public.current_user_id()));
 
 
 --
@@ -2876,10 +3153,52 @@ GRANT ALL ON FUNCTION app_public.verify_email(user_email_id uuid, token text) TO
 
 
 --
+-- Name: TABLE allocations; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE app_public.allocations TO crisisresolver_visitor;
+
+
+--
+-- Name: SEQUENCE allocations_id_seq; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,USAGE ON SEQUENCE app_public.allocations_id_seq TO crisisresolver_visitor;
+
+
+--
 -- Name: TABLE organization_memberships; Type: ACL; Schema: app_public; Owner: -
 --
 
 GRANT SELECT ON TABLE app_public.organization_memberships TO crisisresolver_visitor;
+
+
+--
+-- Name: TABLE requests; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE app_public.requests TO crisisresolver_visitor;
+
+
+--
+-- Name: SEQUENCE requests_id_seq; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,USAGE ON SEQUENCE app_public.requests_id_seq TO crisisresolver_visitor;
+
+
+--
+-- Name: TABLE resources; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE app_public.resources TO crisisresolver_visitor;
+
+
+--
+-- Name: SEQUENCE resources_id_seq; Type: ACL; Schema: app_public; Owner: -
+--
+
+GRANT SELECT,USAGE ON SEQUENCE app_public.resources_id_seq TO crisisresolver_visitor;
 
 
 --
